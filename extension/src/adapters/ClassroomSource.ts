@@ -10,6 +10,16 @@ function parseDueInDays(value: string): number | null {
   return Math.max(1, Math.ceil((dueMs - Date.now()) / (1000 * 60 * 60 * 24)));
 }
 
+function readDueInDays(node: Element): number | null {
+  const dateEl = node.querySelector('time[datetime]');
+  const parsed = parseDueInDays(dateEl?.getAttribute('datetime') ?? '');
+  if (parsed !== null) return parsed;
+
+  const text = (node.textContent ?? '').toLowerCase();
+  if (text.includes('tomorrow')) return 1;
+  return null;
+}
+
 function guessType(title: string): Assignment['type'] {
   const t = title.toLowerCase();
   if (t.includes('exam') || t.includes('midterm') || t.includes('final')) return 'exam';
@@ -36,14 +46,49 @@ function makeId(node: Element, fallback: number): string {
   return `classroom-fallback-${fallback}`;
 }
 
-function readTitle(node: Element): string {
-  const titleEl =
-    node.querySelector('[data-title]') ??
-    node.querySelector('h2, h3') ??
-    node.querySelector('[role="heading"]') ??
-    node.querySelector('span');
-  const title = titleEl?.textContent?.trim() ?? '';
-  return title || 'Untitled assignment';
+function cleanText(value: string | null | undefined): string {
+  return (value ?? '').replace(/\s+/g, ' ').trim();
+}
+
+function normalizeTitle(value: string | null | undefined): string {
+  return cleanText(value)
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]{2,})([A-Z][a-z])/g, '$1 $2')
+    .replace(/^assignment\s*/i, '')
+    .replace(/\s+(due|missing|assigned)\b.*$/i, '')
+    .trim();
+}
+
+function extractTitleFromLines(value: string | null | undefined): string {
+  const lines = (value ?? '')
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean)
+    .filter(line => !/^(assignment|due|missing|assigned)$/i.test(line));
+
+  if (lines.length === 0) return '';
+  return lines.sort((a, b) => b.length - a.length)[0];
+}
+
+function readTitle(node: Element): string | null {
+  const direct = normalizeTitle(
+    extractTitleFromLines(
+    node.querySelector('[data-title]')?.textContent ??
+    node.querySelector('h2, h3')?.textContent ??
+    node.querySelector('[role="heading"]')?.textContent
+    )
+  );
+  if (direct) return direct;
+
+  const link = node.matches('a[href]') ? node : node.querySelector('a[href]');
+  const aria = normalizeTitle(link?.getAttribute('aria-label'));
+  if (aria) {
+    const cleaned = aria.replace(/\b(view|open|details)\b/gi, '').trim();
+    if (cleaned) return cleaned;
+  }
+
+  const fallback = normalizeTitle(extractTitleFromLines(node.textContent));
+  return fallback.length >= 5 ? fallback.slice(0, 140) : null;
 }
 
 export class ClassroomSource implements DataSource {
@@ -68,8 +113,8 @@ export class ClassroomSource implements DataSource {
       const id = makeId(card, index);
       if (seen.has(id)) return;
 
-      const dateEl = card.querySelector('time[datetime]');
-      const dueInDays = parseDueInDays(dateEl?.getAttribute('datetime') ?? '') ?? 3;
+      const dueInDays = readDueInDays(card);
+      if (dueInDays !== 1) return;
       const type = guessType(title);
 
       assignments.push({

@@ -23,24 +23,6 @@ function applyActionIcon(): void {
   chrome.action.setIcon({ path: ACTION_ICON_PATH });
 }
 
-function waitForTabComplete(tabId: number, timeoutMs = 15000): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      chrome.tabs.onUpdated.removeListener(onUpdated);
-      reject(new Error('Timed out waiting for Classroom tab reload'));
-    }, timeoutMs);
-
-    const onUpdated = (updatedTabId: number, info: { status?: string }) => {
-      if (updatedTabId !== tabId || info.status !== 'complete') return;
-      clearTimeout(timer);
-      chrome.tabs.onUpdated.removeListener(onUpdated);
-      resolve();
-    };
-
-    chrome.tabs.onUpdated.addListener(onUpdated);
-  });
-}
-
 async function requestClassroomContentScrape(tabId: number): Promise<Assignment[] | null> {
   try {
     const contentResult = await chrome.tabs.sendMessage(tabId, { type: 'SCRAPE_CLASSROOM_TODO' }) as {
@@ -73,6 +55,16 @@ function scrapeClassroomTodoInPage(): Array<{
     const dueMs = new Date(value).getTime();
     if (Number.isNaN(dueMs)) return null;
     return Math.max(1, Math.ceil((dueMs - Date.now()) / (1000 * 60 * 60 * 24)));
+  };
+
+  const readDueInDays = (node: Element): number | null => {
+    const dateEl = node.querySelector('time[datetime]');
+    const parsed = parseDueInDays(dateEl?.getAttribute('datetime') ?? '');
+    if (parsed !== null) return parsed;
+
+    const text = (node.textContent ?? '').toLowerCase();
+    if (text.includes('tomorrow')) return 1;
+    return null;
   };
 
   const guessType = (title: string): AssignmentType => {
@@ -108,6 +100,52 @@ function scrapeClassroomTodoInPage(): Array<{
     return `classroom-fallback-${fallback}`;
   };
 
+  const cleanText = (value: string | null | undefined): string =>
+    (value ?? '').replace(/\s+/g, ' ').trim();
+
+  const normalizeTitle = (value: string | null | undefined): string =>
+    cleanText(value)
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/([A-Z]{2,})([A-Z][a-z])/g, '$1 $2')
+      .replace(/^assignment\s*/i, '')
+      .replace(/\s+(due|missing|assigned)\b.*$/i, '')
+      .trim();
+
+  const extractTitleFromLines = (value: string | null | undefined): string => {
+    const lines = (value ?? '')
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(Boolean)
+      .filter(line => !/^(assignment|due|missing|assigned)$/i.test(line));
+
+    if (lines.length === 0) return '';
+    return lines.sort((a, b) => b.length - a.length)[0];
+  };
+
+  const readTitle = (node: Element): string | null => {
+    const direct = normalizeTitle(
+      extractTitleFromLines(
+      node.querySelector('[data-title]')?.textContent ??
+      node.querySelector('h2, h3')?.textContent ??
+      node.querySelector('[role="heading"]')?.textContent
+      )
+    );
+    if (direct) return direct;
+
+    const link = node.matches('a[href]') ? node : node.querySelector('a[href]');
+    const aria = normalizeTitle(link?.getAttribute('aria-label'));
+    if (aria) {
+      const cleaned = aria
+        .replace(/\b(view|open|details)\b/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (cleaned) return cleaned;
+    }
+
+    const fallback = normalizeTitle(extractTitleFromLines(node.textContent));
+    return fallback.length >= 5 ? fallback.slice(0, 140) : null;
+  };
+
   const cards = Array.from(document.querySelectorAll('[data-coursework-id], a[href*="/a/"], [role="listitem"]'));
   const assignments: Array<{
     id: string;
@@ -122,15 +160,14 @@ function scrapeClassroomTodoInPage(): Array<{
   const seen = new Set<string>();
 
   cards.forEach((card, index) => {
-    const titleEl = card.querySelector('[data-title]') ?? card.querySelector('h2, h3') ?? card.querySelector('[role="heading"]') ?? card.querySelector('span');
-    const title = titleEl?.textContent?.trim() ?? '';
+    const title = readTitle(card);
     if (!title || testItemPattern.test(title)) return;
 
     const id = makeId(card, index);
     if (seen.has(id)) return;
 
-    const dateEl = card.querySelector('time[datetime]');
-    const dueInDays = parseDueInDays(dateEl?.getAttribute('datetime') ?? '') ?? 3;
+    const dueInDays = readDueInDays(card);
+    if (dueInDays !== 1) return;
     const type = guessType(title);
 
     assignments.push({
@@ -251,36 +288,23 @@ async function enrichAssignments(assignments: Assignment[], apiKey?: string): Pr
 }
 
 function mergeAssignments(existing: Assignment[], incoming: Assignment[]): Assignment[] {
-  const byKey = new Map<string, Assignment>();
+  const byId = new Map<string, Assignment>();
 
   for (const item of existing) {
-    byKey.set(item.id, item);
-    byKey.set(item.title.toLowerCase(), item);
+    byId.set(item.id, item);
   }
 
   for (const item of incoming) {
-    const existingById = byKey.get(item.id);
-    const existingByTitle = byKey.get(item.title.toLowerCase());
-    const prev = existingById ?? existingByTitle;
-
+    const prev = byId.get(item.id);
     if (prev) {
-      const merged = { ...prev, ...item, id: prev.id, done: prev.done };
-      byKey.set(prev.id, merged);
-      byKey.set(prev.title.toLowerCase(), merged);
-      byKey.set(item.title.toLowerCase(), merged);
+      byId.set(item.id, { ...prev, ...item, id: prev.id, done: prev.done });
       continue;
     }
 
-    byKey.set(item.id, item);
-    byKey.set(item.title.toLowerCase(), item);
+    byId.set(item.id, item);
   }
 
-  const unique = new Map<string, Assignment>();
-  for (const value of byKey.values()) {
-    unique.set(value.id, value);
-  }
-
-  return [...unique.values()].sort((a, b) => a.dueInDays - b.dueInDays);
+  return [...byId.values()].sort((a, b) => a.dueInDays - b.dueInDays);
 }
 
 chrome.runtime.onInstalled.addListener(async () => {
@@ -337,15 +361,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         const firstTry = await requestClassroomContentScrape(tabId);
         if (firstTry) {
           sendResponse({ ok: true, assignments: firstTry });
-          return;
-        }
-
-        await chrome.tabs.reload(tabId);
-        await waitForTabComplete(tabId);
-
-        const secondTry = await requestClassroomContentScrape(tabId);
-        if (secondTry) {
-          sendResponse({ ok: true, assignments: secondTry });
           return;
         }
       } catch (err) {
