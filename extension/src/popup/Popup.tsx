@@ -83,7 +83,7 @@ export default function Popup() {
 
       const activeCount = (importResult.assignments ?? []).filter(a => !a.done).length;
       setImportState('done');
-      setImportMessage(`Imported ${importResult.imported ?? 0} tasks. Active tasks: ${activeCount}.`);
+      setImportMessage(`Imported ${importResult.imported ?? 0} tasks due tomorrow. Active tasks: ${activeCount}.`);
     } catch (err) {
       setImportState('error');
       setImportMessage(`Import failed: ${String(err)}`);
