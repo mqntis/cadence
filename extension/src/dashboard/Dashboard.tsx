@@ -8,7 +8,7 @@ interface AppState {
   coinBalance: number;
   rewardEvents: RewardEvent[];
   multipliers: Multipliers;
-  claudeApiKey?: string;
+  openAiApiKey?: string;
   blockedSites?: string[];
 }
 
@@ -62,7 +62,7 @@ export default function Dashboard() {
   const loadState = useCallback(() => {
     chrome.runtime.sendMessage({ type: 'GET_STATE' }, (res: AppState) => {
       setState(res);
-      setApiKeyInput(res.claudeApiKey ?? '');
+      setApiKeyInput((res as any).openAiApiKey ?? '');
       setBlockedSites(normalizeBlockedSites(res.blockedSites));
       setShopMsg('');
     });
@@ -87,8 +87,8 @@ export default function Dashboard() {
   const chartMax = Math.max(8, ...naturalLoad, ...pacedLoad);
 
   const handleSaveApiKey = async () => {
-    await chrome.storage.local.set({ claudeApiKey: apiKeyInput.trim() });
-    setSettingsMsg('Claude API key saved.');
+    await chrome.storage.local.set({ openAiApiKey: apiKeyInput.trim() });
+    setSettingsMsg('OpenAI API key saved.');
   };
 
   const updateBlockedSites = (nextSites: string[]) => {
@@ -138,7 +138,7 @@ export default function Dashboard() {
     }
 
     loadState();
-    setSettingsMsg(`Analyzed ${result.analyzed ?? 0} assignments with Claude.`);
+    setSettingsMsg(`Analyzed ${result.analyzed ?? 0} assignments with OpenAI.`);
   };
 
   const handleBuyUnlock = async (site: string) => {
@@ -192,13 +192,13 @@ export default function Dashboard() {
         <div className="space-y-6 mb-6">
           <div className="bg-card rounded-2xl shadow-sm p-5">
             <h2 className="font-semibold mb-3">API Key</h2>
-            <p className="text-xs text-ink/60 mb-3">Add a Claude API key to classify tasks and score difficulty automatically.</p>
+            <p className="text-xs text-ink/60 mb-3">Add an OpenAI API key to classify tasks and score difficulty automatically.</p>
             <div className="flex flex-col md:flex-row gap-2">
               <input
                 value={apiKeyInput}
                 onChange={e => setApiKeyInput(e.target.value)}
                 type="password"
-                placeholder="sk-ant-..."
+                placeholder="sk-..."
                 className="flex-1 rounded-lg border border-ink/20 bg-surface px-3 py-2 text-sm"
               />
               <button

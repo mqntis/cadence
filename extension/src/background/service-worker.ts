@@ -1,14 +1,14 @@
 import type { Assignment, AssignmentType } from '../engine/types.js';
 import { calcEst, DEFAULT_MULTIPLIERS } from '../engine/estimator.js';
 
-type ClaudeResult = {
+type ModelResult = {
   topic: string;
   type: AssignmentType;
   estHours: number;
   difficultyScore: number;
 };
 
-const CLAUDE_MODEL = 'claude-3-5-haiku-latest';
+const OPENAI_MODEL = 'gpt-4o-mini';
 const ACTION_ICON_PATH = {
   16: 'icons/icon16.png',
   19: 'icons/icon19.png',
@@ -288,36 +288,33 @@ function extractJson(text: string): string {
   return text.slice(start, end + 1);
 }
 
-async function analyzeWithClaude(assignment: Assignment, apiKey: string): Promise<ClaudeResult | null> {
+async function analyzeWithOpenAI(assignment: Assignment, apiKey: string): Promise<ModelResult | null> {
   const prompt = [
-    'Classify this student assignment and estimate workload.',
+    'Estimate how long this assignment will take based on its title only. Give a concise numeric estimate of hours needed for a typical student.',
     `Title: ${assignment.title}`,
     `Due in days: ${assignment.dueInDays}`,
-    'Return JSON only: {"topic":"...","type":"reading|homework|quiz|essay|project|exam","estHours":number,"difficultyScore":0-100}',
+    'Return JSON only: {"estHours":number, "topic":"...", "type":"reading|homework|quiz|essay|project|exam", "difficultyScore":0-100}',
   ].join('\n');
-
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
+      'Authorization': `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: CLAUDE_MODEL,
-      max_tokens: 220,
-      temperature: 0.1,
+      model: OPENAI_MODEL,
       messages: [{ role: 'user', content: prompt }],
+      max_tokens: 500,
+      temperature: 0.1,
     }),
   });
 
   if (!res.ok) {
-    throw new Error(`Claude API error: ${res.status}`);
+    throw new Error(`OpenAI API error: ${res.status}`);
   }
 
   const data = await res.json();
-  const text = data?.content?.[0]?.text;
+  const text = (data?.choices?.[0]?.message?.content ?? data?.choices?.[0]?.text) as string | undefined;
   if (typeof text !== 'string') return null;
 
   const parsed = JSON.parse(extractJson(text)) as {
@@ -343,13 +340,13 @@ async function enrichAssignments(assignments: Assignment[], apiKey?: string): Pr
   const results: Assignment[] = [];
 
   for (const assignment of assignments) {
-    let analyzed: ClaudeResult | null = null;
+    let analyzed: ModelResult | null = null;
 
     if (apiKey) {
       try {
-        analyzed = await analyzeWithClaude(assignment, apiKey);
+        analyzed = await analyzeWithOpenAI(assignment, apiKey);
       } catch (err) {
-        console.warn('[Grape] Claude analysis failed:', err);
+        console.warn('[Grape] OpenAI analysis failed:', err);
       }
     }
 
@@ -395,7 +392,7 @@ chrome.runtime.onInstalled.addListener(async () => {
     assignments: [],
     coinBalance: 0,
     rewardEvents: [],
-    claudeApiKey: '',
+    openAiApiKey: '',
     multipliers: {
       reading: 1.0,
       homework: 1.0,
@@ -415,7 +412,7 @@ chrome.runtime.onStartup.addListener(() => {
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'GET_STATE') {
-    chrome.storage.local.get(['assignments', 'coinBalance', 'rewardEvents', 'multipliers', 'claudeApiKey', 'blockedSites'])
+    chrome.storage.local.get(['assignments', 'coinBalance', 'rewardEvents', 'multipliers', 'openAiApiKey', 'blockedSites'])
       .then(sendResponse);
     return true;
   }
@@ -515,7 +512,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
 
   if (msg.type === 'IMPORT_CLASSROOM_ASSIGNMENTS') {
-    chrome.storage.local.get(['assignments', 'claudeApiKey'])
+    chrome.storage.local.get(['assignments', 'openAiApiKey'])
       .then(async store => {
         const current = (store['assignments'] as Assignment[] | undefined) ?? [];
         const incoming = (msg.assignments as Assignment[] | undefined) ?? [];
@@ -523,7 +520,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           sendResponse({ ok: false, error: 'No Classroom tasks found on the current page.' });
           return;
         }
-        const enriched = await enrichAssignments(incoming, store['claudeApiKey'] as string | undefined);
+        const enriched = await enrichAssignments(incoming, store['openAiApiKey'] as string | undefined);
         const merged = mergeAssignments(current, enriched);
         await chrome.storage.local.set({ assignments: merged });
         sendResponse({ ok: true, imported: enriched.length, total: merged.length, assignments: merged });
@@ -534,11 +531,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
 
   if (msg.type === 'ANALYZE_ASSIGNMENTS') {
-    chrome.storage.local.get(['assignments', 'claudeApiKey'])
+    chrome.storage.local.get(['assignments', 'openAiApiKey'])
       .then(async store => {
-        const apiKey = (store['claudeApiKey'] as string | undefined) ?? '';
+        const apiKey = (store['openAiApiKey'] as string | undefined) ?? '';
         if (!apiKey) {
-          sendResponse({ ok: false, error: 'Missing Claude API key in settings' });
+          sendResponse({ ok: false, error: 'Missing OpenAI API key in settings' });
           return;
         }
 
