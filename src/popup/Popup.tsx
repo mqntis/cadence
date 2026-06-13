@@ -43,7 +43,7 @@ export default function Popup() {
   return (
     <div className="w-72 bg-surface text-ink p-4 font-sans">
       <div className="flex items-center justify-between mb-3">
-        <h1 className="text-lg font-bold tracking-tight text-accent">Cadence</h1>
+        <h1 className="text-lg font-bold tracking-tight text-accent">Grape</h1>
         <span className="text-xs bg-gold/20 text-gold font-mono px-2 py-0.5 rounded-full">
           {state.coinBalance} coins
         </span>

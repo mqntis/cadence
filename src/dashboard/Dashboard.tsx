@@ -36,7 +36,7 @@ export default function Dashboard() {
   if (!state) {
     return (
       <div className="min-h-screen bg-surface flex items-center justify-center">
-        <div className="text-ink/50 font-mono">Loading Cadence...</div>
+        <div className="text-ink/50 font-mono">Loading Grape...</div>
       </div>
     );
   }
