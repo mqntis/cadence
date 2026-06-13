@@ -10,6 +10,6 @@ import { ClassroomSource } from '../adapters/ClassroomSource.js';
       chrome.runtime.sendMessage({ type: 'UPDATE_ASSIGNMENTS', assignments });
     }
   } catch (e) {
-    console.warn('[Cadence] Classroom sync failed:', e);
+    console.warn('[Grape] Classroom sync failed:', e);
   }
 })();

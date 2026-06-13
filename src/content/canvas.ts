@@ -9,6 +9,6 @@ import { CanvasSource } from '../adapters/CanvasSource.js';
     const assignments = await src.fetchAssignments();
     chrome.runtime.sendMessage({ type: 'UPDATE_ASSIGNMENTS', assignments });
   } catch (e) {
-    console.warn('[Cadence] Canvas sync failed:', e);
+    console.warn('[Grape] Canvas sync failed:', e);
   }
 })();

@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Cadence",
+  "name": "Grape",
   "version": "0.1.0",
   "description": "Prevent academic burnout by pacing your workload — not just tracking deadlines.",
   "permissions": ["storage", "alarms"],
@@ -10,7 +10,7 @@
   ],
   "action": {
     "default_popup": "src/popup/popup.html",
-    "default_title": "Cadence"
+    "default_title": "Grape"
   },
   "background": {
     "service_worker": "src/background/service-worker.ts",
