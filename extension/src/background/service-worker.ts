@@ -41,6 +41,70 @@ function waitForTabComplete(tabId: number, timeoutMs = 15000): Promise<void> {
   });
 }
 
+const DEFAULT_BLOCKED_SITES = ['instagram.com', 'discord.com', 'youtube.com'];
+
+const BLOCKED_REDIRECT_PATH = '/src/blocked.html';
+
+function buildRedirectRule(domain: string, ruleId: number): chrome.declarativeNetRequest.Rule {
+  return {
+    id: ruleId,
+    priority: 1,
+    action: {
+      type: 'redirect',
+      redirect: { extensionPath: BLOCKED_REDIRECT_PATH },
+    },
+    condition: {
+      urlFilter: `||${domain}^`,
+      resourceTypes: ['main_frame'],
+    },
+  };
+}
+
+function pruneUnblockedSites(unblockedSites?: Record<string, number>): Record<string, number> {
+  const now = Date.now();
+  return Object.entries(unblockedSites ?? {}).reduce<Record<string, number>>((acc, [domain, expiry]) => {
+    if (expiry > now) {
+      acc[domain] = expiry;
+    }
+    return acc;
+  }, {});
+}
+
+function isSiteUnlocked(domain: string, unblockedSites?: Record<string, number>): boolean {
+  const normalized = domain.trim().toLowerCase();
+  const expiry = unblockedSites?.[normalized];
+  return typeof expiry === 'number' && expiry > Date.now();
+}
+
+async function applyBlockRules(blockedSites: string[]) {
+  const store = await chrome.storage.local.get(['unblockedSites']);
+  const unblockedSites = pruneUnblockedSites(store.unblockedSites as Record<string, number> | undefined);
+  if (Object.keys(unblockedSites).length !== Object.keys(store.unblockedSites ?? {}).length) {
+    await chrome.storage.local.set({ unblockedSites });
+  }
+  const activeBlockedSites = blockedSites.filter(site => !isSiteUnlocked(site, unblockedSites));
+  const currentRules = await chrome.declarativeNetRequest.getDynamicRules();
+  const removeRuleIds = currentRules.map(rule => rule.id);
+
+  const addRules = activeBlockedSites.map((domain, idx) =>
+    buildRedirectRule(domain, idx + 1)
+  );
+
+  await chrome.declarativeNetRequest.updateDynamicRules({
+    removeRuleIds,
+    addRules,
+  });
+}
+
+async function initBlockList() {
+  const store = await chrome.storage.local.get(['blockedSites']);
+  const blockedSites = (store.blockedSites as string[] | undefined) ?? DEFAULT_BLOCKED_SITES;
+  if (!store.blockedSites) {
+    await chrome.storage.local.set({ blockedSites });
+  }
+  await applyBlockRules(blockedSites);
+}
+
 async function requestClassroomContentScrape(tabId: number): Promise<Assignment[] | null> {
   try {
     const contentResult = await chrome.tabs.sendMessage(tabId, { type: 'SCRAPE_CLASSROOM_TODO' }) as {
@@ -299,15 +363,17 @@ chrome.runtime.onInstalled.addListener(async () => {
       exam: 1.0,
     },
   });
+  await initBlockList();
 });
 
 chrome.runtime.onStartup.addListener(() => {
   applyActionIcon();
+  initBlockList();
 });
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'GET_STATE') {
-    chrome.storage.local.get(['assignments', 'coinBalance', 'rewardEvents', 'multipliers', 'claudeApiKey'])
+    chrome.storage.local.get(['assignments', 'coinBalance', 'rewardEvents', 'multipliers', 'claudeApiKey', 'blockedSites'])
       .then(sendResponse);
     return true;
   }
@@ -322,6 +388,48 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       chrome.storage.local.set({ coinBalance: balance, rewardEvents: events })
         .then(() => sendResponse({ ok: true, balance }));
     });
+    return true;
+  }
+
+  if (msg.type === 'SET_BLOCKED_SITES') {
+    (async () => {
+      const blockedSites = Array.isArray(msg.blockedSites) ? msg.blockedSites : DEFAULT_BLOCKED_SITES;
+      await chrome.storage.local.set({ blockedSites });
+      await applyBlockRules(blockedSites);
+      sendResponse({ ok: true });
+    })();
+    return true;
+  }
+
+  if (msg.type === 'BUY_UNLOCK_TIME') {
+    chrome.storage.local.get(['coinBalance', 'blockedSites', 'unblockedSites']).then(async store => {
+      const coinBalance = Number(store['coinBalance'] ?? 0);
+      const blockedSites = (store['blockedSites'] as string[] | undefined) ?? DEFAULT_BLOCKED_SITES;
+      const unblockedSites = pruneUnblockedSites(store['unblockedSites'] as Record<string, number> | undefined);
+      const domain = typeof msg.domain === 'string' ? msg.domain.trim().toLowerCase() : '';
+      const minutes = Number(msg.minutes) || 0;
+      const cost = minutes * 10;
+
+      if (!domain || minutes < 1) {
+        sendResponse({ ok: false, error: 'Invalid unlock request.' });
+        return;
+      }
+      if (!blockedSites.includes(domain)) {
+        sendResponse({ ok: false, error: 'Domain is not blocked.' });
+        return;
+      }
+      if (coinBalance < cost) {
+        sendResponse({ ok: false, error: 'Not enough coins.' });
+        return;
+      }
+
+      const expiry = Date.now() + minutes * 60 * 1000;
+      const nextUnblockedSites = { ...unblockedSites, [domain]: expiry };
+      await chrome.storage.local.set({ coinBalance: coinBalance - cost, unblockedSites: nextUnblockedSites });
+      await applyBlockRules(blockedSites);
+      sendResponse({ ok: true, balance: coinBalance - cost });
+    }).catch(err => sendResponse({ ok: false, error: String(err) }));
+
     return true;
   }
 

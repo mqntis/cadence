@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grape Focus Mode</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #eef3f0, #d7e8e2);
+      color: #1f2d2b;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      text-align: center;
+      padding: 24px;
+    }
+    .card {
+      max-width: 520px;
+      width: 100%;
+      background: white;
+      border-radius: 24px;
+      box-shadow: 0 24px 60px rgba(34, 49, 53, 0.12);
+      padding: 36px 28px;
+    }
+    .grape {
+      font-size: 72px;
+      line-height: 1;
+      margin-bottom: 16px;
+    }
+    .title {
+      font-size: 28px;
+      margin: 0 0 12px;
+    }
+    .subtitle {
+      margin: 0 0 24px;
+      color: #52605f;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+    .coins {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 auto 28px;
+      background: #f6f4e8;
+      color: #7b5a2b;
+      border-radius: 999px;
+      padding: 10px 18px;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .shop {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-width: 200px;
+      padding: 14px 20px;
+      border-radius: 999px;
+      background: #2f7d6e;
+      color: white;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 14px;
+      box-shadow: 0 14px 30px rgba(47, 125, 110, 0.22);
+    }
+    .shop:hover {
+      background: #2d765f;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <img class="grape" src="../icons/icon128.png" alt="Grape logo" />
+    <h1 class="title">Focus first, distractions later</h1>
+    <p class="subtitle">This site is blocked while you are in Grape mode. Spend your coins wisely and return when you're ready to stay on task.</p>
+    <div class="coins">You have <strong id="coin-count">0</strong> coins</div>
+    <a class="shop" href="#" id="shop-button">Shop</a>
+  </div>
+  <script>
+    const coinCount = document.getElementById('coin-count');
+    const shopButton = document.getElementById('shop-button');
+    chrome.storage.local.get(['coinBalance']).then(store => {
+      coinCount.textContent = (store.coinBalance ?? 0).toString();
+    });
+    if (shopButton) {
+      shopButton.setAttribute('href', chrome.runtime.getURL('src/dashboard/dashboard.html?page=shop'));
+    }
+  </script>
+</body>
+</html>

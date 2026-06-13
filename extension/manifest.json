@@ -3,11 +3,15 @@
   "name": "Grape",
   "version": "0.1.0",
   "description": "Prevent academic burnout by pacing your workload — not just tracking deadlines.",
-  "permissions": ["storage", "alarms", "tabs", "scripting"],
+  "permissions": ["storage", "alarms", "tabs", "scripting", "declarativeNetRequest"],
   "host_permissions": [
+    "<all_urls>",
     "https://*.instructure.com/*",
     "https://classroom.google.com/*",
-    "https://api.anthropic.com/*"
+    "https://api.anthropic.com/*",
+    "https://*.instagram.com/*",
+    "https://*.discord.com/*",
+    "https://*.youtube.com/*"
   ],
   "action": {
     "default_popup": "src/popup/popup.html",
@@ -35,6 +39,12 @@
     "service_worker": "src/background/service-worker.ts",
     "type": "module"
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["src/blocked.html"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "content_scripts": [
     {
       "matches": ["https://*.instructure.com/*"],
