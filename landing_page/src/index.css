@@ -1,0 +1,66 @@
+@import url("https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@500;600;700;800&display=swap");
+
+:root {
+  --bg-0: #fdf8f2;
+  --bg-1: #fff2dd;
+  --bg-2: #f4e7ff;
+  --surface: rgba(255, 255, 255, 0.8);
+  --surface-strong: rgba(255, 255, 255, 0.92);
+  --line: rgba(93, 44, 144, 0.18);
+  --text: #2b1b42;
+  --muted: #624c80;
+  --brand: #5d2c90;
+  --brand-2: #7c3aed;
+  --accent: #f97316;
+  --mint: #10b981;
+  --shadow-soft: 0 10px 35px rgba(68, 26, 119, 0.15);
+  --shadow-lift: 0 16px 34px rgba(68, 26, 119, 0.2);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  color: var(--text);
+  font-family: "Nunito", "Avenir Next", "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at 15% 10%, rgba(249, 115, 22, 0.24), transparent 23rem),
+    radial-gradient(circle at 85% 0%, rgba(124, 58, 237, 0.22), transparent 28rem),
+    linear-gradient(170deg, var(--bg-0), var(--bg-1) 50%, var(--bg-2));
+  line-height: 1.65;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
