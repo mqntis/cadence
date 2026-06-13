@@ -1,1 +1,0 @@
-var e={reading:1.5,homework:2,quiz:1.5,essay:4,project:6,exam:5},t={reading:1,homework:1,quiz:1,essay:1,project:1,exam:1};function n(e){return Math.round(e*2)/2}function r(t,r,i){return n(r??e[t]*i[t])}export{r as n,n as r,t};
