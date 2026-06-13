@@ -1,6 +1,15 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #1f2d2b;
+  --color-surface: #eef3f0;
+  --color-card: #ffffff;
+  --color-accent: #2f7d6e;
+  --color-healthy: #6aa37f;
+  --color-tight: #d9a441;
+  --color-overload: #c9706a;
+  --color-gold: #b8923a;
+}
 
 body {
   background-color: #eef3f0;
