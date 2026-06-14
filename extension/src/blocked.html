@@ -80,13 +80,6 @@
     <div class="coins">You have <strong id="coin-count">0</strong> coins</div>
     <a class="shop" href="/src/dashboard/dashboard.html?page=shop" id="shop-button">Shop</a>
   </div>
-  <script>
-    const coinCount = document.getElementById('coin-count');
-    chrome.storage.local.get(['coinBalance']).then(store => {
-      if (coinCount) {
-        coinCount.textContent = (store.coinBalance ?? 0).toString();
-      }
-    });
-  </script>
+  <script type="module" src="./blocked.ts"></script>
 </body>
 </html>

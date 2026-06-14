@@ -1,9 +1,39 @@
 const coinCount = document.getElementById('coin-count');
 const shopButton = document.getElementById('shop-button');
 
-chrome.storage.local.get(['coinBalance']).then(store => {
-  if (coinCount) {
-    coinCount.textContent = String(store.coinBalance ?? 0);
+function renderCoinBalance(balance: unknown) {
+  if (!coinCount) return;
+  const amount = Number(balance ?? 0);
+  coinCount.textContent = Number.isFinite(amount) ? amount.toLocaleString() : '0';
+}
+
+async function refreshCoinBalance() {
+  try {
+    const state = await chrome.runtime.sendMessage({ type: 'GET_STATE' }) as { coinBalance?: number };
+    if (state && typeof state.coinBalance !== 'undefined') {
+      renderCoinBalance(state.coinBalance);
+      return;
+    }
+  } catch {}
+
+  const store = await chrome.storage.local.get(['coinBalance']);
+  renderCoinBalance(store.coinBalance);
+}
+
+refreshCoinBalance();
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'local' || !changes.coinBalance) return;
+  renderCoinBalance(changes.coinBalance.newValue);
+});
+
+window.addEventListener('focus', () => {
+  refreshCoinBalance();
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    refreshCoinBalance();
   }
 });
 

@@ -41,6 +41,8 @@ const ZONE_COLORS: Record<string, string> = {
   overload: '#c9706a',
 };
 
+const CONFETTI_COLORS = ['#2f7d6e', '#6aa37f', '#d9a441', '#f59e0b', '#f87171', '#38bdf8'];
+
 function formatDuration(task: Assignment): string {
   const mins = task.estMinutes;
   if (typeof mins === 'number' && mins > 0) {
@@ -58,6 +60,23 @@ function formatLoadHours(hours: number): string {
   const h = Math.floor(totalMinutes / 60);
   const m = totalMinutes % 60;
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+function formatCountdown(expiryMs: number): string {
+  const remaining = Math.max(0, expiryMs - Date.now());
+  const totalSeconds = Math.floor(remaining / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}m ${String(seconds).padStart(2, '0')}s`;
+}
+
+function formatSiteLabel(site: string): string {
+  const primary = site.replace(/^www\./, '').split('.')[0] ?? site;
+  return primary
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }
 
 function HomeIcon() {
@@ -104,6 +123,7 @@ export default function Dashboard() {
   const [unlockedSites, setUnlockedSites] = useState<Record<string, number>>({});
   const [showShoppingAnimation, setShowShoppingAnimation] = useState(false);
   const [animatingShoppingCart, setAnimatingShoppingCart] = useState('');
+  const [purchaseMinutes, setPurchaseMinutes] = useState(0);
   const [timerTick, setTimerTick] = useState(0);
 
   const loadState = useCallback(() => {
@@ -261,8 +281,8 @@ export default function Dashboard() {
         return;
       }
       setAnimatingShoppingCart(site);
+      setPurchaseMinutes(minutes);
       setShowShoppingAnimation(true);
-      setTimeout(() => setShowShoppingAnimation(false), 1500);
       setShopMsg(`Unlocked ${site} for ${minutes} minute${minutes !== 1 ? 's' : ''}. ${cost} coins spent.`);
       loadState();
     });
@@ -271,35 +291,88 @@ export default function Dashboard() {
   return (
     <>
       {showShoppingAnimation && (
-        <div className="fixed inset-0 pointer-events-none overflow-hidden z-50">
-          <div className="relative w-full h-full">
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-bounce">
-              <div className="text-4xl">🛒</div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/35 p-6">
+          <div className="w-full max-w-2xl rounded-3xl border border-accent/25 bg-card px-8 py-8 shadow-2xl">
+            <div className="mb-8 text-center">
+              <div className="inline-flex items-center gap-4 text-accent">
+                <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-accent/20 bg-white p-1.5 shadow-sm">
+                  <img
+                    src={getFaviconUrl(animatingShoppingCart)}
+                    alt={`${animatingShoppingCart} favicon`}
+                    className="h-full w-full object-contain"
+                    loading="lazy"
+                  />
+                </div>
+                <div className="text-left leading-tight">
+                  <div className="text-3xl font-bold">Purchased {purchaseMinutes}m of</div>
+                  <div className="text-4xl font-extrabold">{formatSiteLabel(animatingShoppingCart)}</div>
+                </div>
+              </div>
             </div>
-            <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
-              <div className="text-2xl font-bold text-accent animate-pulse">Apps Unblocked! 🎉</div>
+
+            <div className="confetti-stage mb-8 h-44 overflow-hidden rounded-2xl border border-accent/20 bg-healthy/15 px-2 py-2">
+              {Array.from({ length: 22 }).map((_, i) => (
+                <span
+                  key={i}
+                  className="confetti-piece"
+                  style={{
+                    '--dx': `${Math.cos((Math.PI * 2 * i) / 22) * (80 + (i % 4) * 26)}px`,
+                    '--dy': `${Math.sin((Math.PI * 2 * i) / 22) * (70 + (i % 5) * 20)}px`,
+                    '--rot': `${i % 2 === 0 ? 1 : -1}${140 + i * 12}deg`,
+                    animationDelay: `${(i % 6) * 0.03}s`,
+                    backgroundColor: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+                  } as React.CSSProperties}
+                />
+              ))}
             </div>
-            <svg className="absolute top-1/2 left-1/4 w-20 h-20 animate-pulse" viewBox="0 0 100 100" fill="none" stroke="currentColor">
-              <circle cx="50" cy="50" r="45" className="text-accent" strokeWidth="2" />
-            </svg>
+
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowShoppingAnimation(false);
+                  setAnimatingShoppingCart('');
+                  setPurchaseMinutes(0);
+                }}
+                className="rounded-xl bg-accent px-8 py-3 text-base font-semibold text-white hover:bg-accent/90"
+              >
+                Okay
+              </button>
+            </div>
+            {animatingShoppingCart && (
+              <div className="mt-4 text-center text-xs text-ink/45">{formatSiteLabel(animatingShoppingCart)} is now available.</div>
+            )}
           </div>
         </div>
       )}
       <div className="min-h-screen bg-surface text-ink font-sans flex">
         {Object.keys(unlockedSites).length > 0 && (
-          <div className="w-48 border-r border-ink/10 bg-card p-4 sticky top-0 h-screen overflow-y-auto">
-            <div className="font-semibold text-sm mb-4 text-accent">🔓 Unlocked Apps</div>
+          <div className="w-56 border-r border-accent/20 bg-healthy/20 p-4 sticky top-0 h-screen overflow-y-auto">
+            <div className="mb-4 rounded-xl border border-accent/20 bg-healthy/25 px-3 py-2">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-accent/70">Live Timers</div>
+              <div className="text-sm font-semibold text-accent">🔓 Unlocked Apps</div>
+            </div>
             <div className="space-y-3">
               {Object.entries(unlockedSites).map(([site, expiryMs]) => {
-                const now = Date.now();
-                const remaining = Math.max(0, expiryMs - now);
-                const minutes = Math.floor(remaining / 60000);
-                const seconds = Math.floor((remaining % 60000) / 1000);
+                const remaining = Math.max(0, expiryMs - Date.now());
+                const progress = Math.min(100, Math.max(5, (remaining / (60 * 60 * 1000)) * 100));
+
                 return (
-                  <div key={site} className="rounded-lg bg-surface p-3 border border-accent/20">
-                    <div className="text-xs font-semibold text-ink mb-2">{site}</div>
-                    <div className="text-sm font-mono text-accent font-bold">
-                      {minutes}m {seconds}s
+                  <div key={site} className="rounded-xl border border-accent/25 bg-[#c7ddd1] p-3 shadow-sm">
+                    <div className="mb-2 flex items-center gap-2">
+                      <div className="h-6 w-6 shrink-0 overflow-hidden rounded-md bg-white/80 p-0.5">
+                        <img
+                          src={getFaviconUrl(site)}
+                          alt={`${site} favicon`}
+                          className="h-full w-full object-contain"
+                          loading="lazy"
+                        />
+                      </div>
+                      <div className="text-xs font-semibold text-ink truncate">{site}</div>
+                    </div>
+                    <div className="text-sm font-mono font-bold text-accent">{formatCountdown(expiryMs)}</div>
+                    <div className="mt-2 h-1.5 rounded-full bg-white/60">
+                      <div className="h-full rounded-full bg-accent/65" style={{ width: `${progress}%` }} />
                     </div>
                   </div>
                 );
