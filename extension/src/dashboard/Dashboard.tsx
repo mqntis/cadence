@@ -310,11 +310,11 @@ export default function Dashboard() {
                 <div key={site} className="flex flex-col gap-3 rounded-xl border border-ink/10 bg-surface p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-white border border-ink/10 shadow-sm">
+                      <div className="h-10 w-10 shrink-0 overflow-hidden">
                         <img
                           src={SITE_ICONS[site] ?? ''}
                           alt={`${site} logo`}
-                          className="h-full w-full object-contain p-2"
+                          className="h-full w-full object-contain"
                           loading="lazy"
                         />
                       </div>
