@@ -7,6 +7,7 @@ interface Props {
   onMarkDone: (id: string, daysEarly: number) => void;
 }
 
+// Renders assignment rows with a done action for each item.
 export default function AssignmentList({ assignments, onMarkDone }: Props) {
   return (
     <div className="space-y-2">

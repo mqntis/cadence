@@ -4,12 +4,14 @@ import { calcEst, DEFAULT_MULTIPLIERS } from '../engine/estimator.js';
 
 const TEST_ITEM_PATTERN = /\b(test|testing|sample|demo)\b/i;
 
+// Parses a datetime string into days-until-due.
 function parseDueInDays(value: string): number | null {
   const dueMs = new Date(value).getTime();
   if (Number.isNaN(dueMs)) return null;
   return Math.max(1, Math.ceil((dueMs - Date.now()) / (1000 * 60 * 60 * 24)));
 }
 
+// Reads due-day info from Classroom card metadata/text.
 function readDueInDays(node: Element): number | null {
   const dateEl = node.querySelector('time[datetime]');
   const parsed = parseDueInDays(dateEl?.getAttribute('datetime') ?? '');
@@ -31,6 +33,7 @@ function readDueInDays(node: Element): number | null {
   return null;
 }
 
+// Infers assignment type from Classroom title keywords.
 function guessType(title: string): Assignment['type'] {
   const t = title.toLowerCase();
   if (t.includes('exam') || t.includes('midterm') || t.includes('final')) return 'exam';
@@ -41,6 +44,7 @@ function guessType(title: string): Assignment['type'] {
   return 'homework';
 }
 
+// Creates a stable assignment id from available card attributes.
 function makeId(node: Element, fallback: number): string {
   const streamItemId = node.getAttribute('data-stream-item-id');
   if (streamItemId) return `classroom-stream-${streamItemId}`;
@@ -60,10 +64,12 @@ function makeId(node: Element, fallback: number): string {
   return `classroom-fallback-${fallback}`;
 }
 
+// Collapses whitespace and trims text.
 function cleanText(value: string | null | undefined): string {
   return (value ?? '').replace(/\s+/g, ' ').trim();
 }
 
+// Normalizes noisy title variants into clean readable text.
 function normalizeTitle(value: string | null | undefined): string {
   return cleanText(value)
     .replace(/([a-z])([A-Z])/g, '$1 $2')
@@ -73,6 +79,7 @@ function normalizeTitle(value: string | null | undefined): string {
     .trim();
 }
 
+// Picks the strongest title candidate from multiline text blobs.
 function extractTitleFromLines(value: string | null | undefined): string {
   const lines = (value ?? '')
     .split(/\r?\n/)
@@ -84,6 +91,7 @@ function extractTitleFromLines(value: string | null | undefined): string {
   return lines.sort((a, b) => b.length - a.length)[0];
 }
 
+// Extracts assignment title from structured fields with fallbacks.
 function readTitle(node: Element): string | null {
   const classroomTitle = normalizeTitle(
     node.querySelector('.y9bEQb .oDLUVd')?.textContent ??
@@ -114,11 +122,13 @@ function readTitle(node: Element): string | null {
 export class ClassroomSource implements DataSource {
   readonly name = 'Google Classroom';
 
+  // Checks if script is running in Google Classroom.
   async isAvailable(): Promise<boolean> {
     if (typeof window === 'undefined') return false;
     return window.location.hostname === 'classroom.google.com';
   }
 
+  // Scrapes Classroom todo cards and converts them to assignments.
   async fetchAssignments(): Promise<Assignment[]> {
     const cards = Array.from(
       document.querySelectorAll('[data-stream-item-id][data-course-id]')

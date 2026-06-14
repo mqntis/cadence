@@ -4,6 +4,7 @@ export const SUPPORT_LINK = 'https://www.crisistextline.org/';
 export const STRAINED_MESSAGE =
   'Your recent pattern suggests you\'re carrying a heavy load. Consider lightening next week or talking to someone.';
 
+// Summarizes recent reward-pattern signals into a drift state.
 export function computeDrift(recentEvents: RewardEvent[]): DriftResult {
   const cramCount = recentEvents.filter(e => e.type === 'cram').length;
   const lateNightCount = recentEvents.filter(e => e.type === 'lateNight').length;
@@ -16,6 +17,7 @@ export function computeDrift(recentEvents: RewardEvent[]): DriftResult {
   return { state, cramCount, lateNightCount, backlog };
 }
 
+// Maps a drift state to a human-readable coaching message.
 export function driftMessage(state: DriftState): string | null {
   if (state === 'strained') return STRAINED_MESSAGE;
   if (state === 'watch') return 'You\'ve had a few rough days. Keep an eye on your pace.';

@@ -2,6 +2,7 @@
 // Sends assignment data to service worker via chrome.runtime.sendMessage
 import { CanvasSource } from '../adapters/CanvasSource.js';
 
+// Pulls Canvas assignments on page load and syncs them to extension state.
 (async () => {
   const src = new CanvasSource();
   if (!(await src.isAvailable())) return;

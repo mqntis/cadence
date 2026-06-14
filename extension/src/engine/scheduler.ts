@@ -1,5 +1,6 @@
 import type { Assignment, CrunchInfo, Zone } from './types.js';
 
+// Normalizes hour values to 5-minute precision.
 function roundToFiveMinutes(hours: number): number {
   return Math.round(hours * 12) / 12;
 }
@@ -8,12 +9,14 @@ export const COMFORT = 2.5;
 export const MAX = 4.0;
 export const HORIZON = 13;
 
+// Buckets a day load into healthy, tight, or overload.
 export function zone(hours: number): Zone {
   if (hours > MAX) return 'overload';
   if (hours > COMFORT) return 'tight';
   return 'healthy';
 }
 
+// Spreads work across available days to minimize spikes.
 export function paced(items: Assignment[], horizon: number = HORIZON): number[] {
   const load = Array(horizon).fill(0) as number[];
   const sorted = [...items].sort((x, y) => x.dueInDays - y.dueInDays);
@@ -34,6 +37,7 @@ export function paced(items: Assignment[], horizon: number = HORIZON): number[] 
   return load.map(roundToFiveMinutes);
 }
 
+// Simulates procrastination-heavy scheduling near due dates.
 export function natural(items: Assignment[], horizon: number = HORIZON): number[] {
   const load = Array(horizon).fill(0) as number[];
   const sorted = [...items].sort((x, y) => y.dueInDays - x.dueInDays);
@@ -53,6 +57,7 @@ export function natural(items: Assignment[], horizon: number = HORIZON): number[
   return load.map(roundToFiveMinutes);
 }
 
+// Detects the longest contiguous overload run in natural load.
 export function crunch(naturalLoad: number[]): CrunchInfo {
   let longestRun = 0;
   let longestStart = -1;

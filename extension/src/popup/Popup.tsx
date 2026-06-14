@@ -21,10 +21,12 @@ export default function Popup() {
   const [addTaskMessage, setAddTaskMessage] = useState('');
   const [isAddingTask, setIsAddingTask] = useState(false);
 
+  // Loads the latest extension state from the service worker.
   const loadState = () => {
     chrome.runtime.sendMessage({ type: 'GET_STATE' }, (res: State) => setState(res));
   };
 
+  // Formats decimal hour values into compact human text.
   const formatLoadHours = (hours: number): string => {
     const totalMinutes = Math.round(hours * 60);
     if (totalMinutes < 60) return `${totalMinutes}m`;
@@ -33,6 +35,7 @@ export default function Popup() {
     return m === 0 ? `${h}h` : `${h}h ${m}m`;
   };
 
+  // Formats assignment estimate using minutes when available.
   const formatDuration = (task: Assignment): string => {
     const mins = task.estMinutes;
     if (typeof mins === 'number' && mins > 0) {
@@ -48,6 +51,7 @@ export default function Popup() {
     loadState();
   }, []);
 
+  // Imports assignments from the active Google Classroom tab.
   const importFromClassroom = async () => {
     setImportState('loading');
     setImportMessage('');
@@ -110,6 +114,7 @@ export default function Popup() {
     }
   };
 
+  // Marks one assignment complete and grants completion reward.
   const handleMarkDone = (id: string) => {
     if (!state) return;
 
@@ -127,6 +132,7 @@ export default function Popup() {
     });
   };
 
+  // Creates a manual task and asks AI for a duration estimate.
   const handleAddTask = async () => {
     if (!state) return;
     const title = newTaskTitle.trim();
@@ -212,6 +218,7 @@ export default function Popup() {
 
   const drift = computeDrift(state.rewardEvents.slice(-20));
 
+  // Produces a short subject label for list rendering.
   const formatSubject = (task: Assignment): string => {
     const raw = (task.topic ?? task.type ?? 'homework').toString().trim();
     const words = raw.split(/\s+/).filter(Boolean).slice(0, 2);

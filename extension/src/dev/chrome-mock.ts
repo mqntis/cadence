@@ -30,6 +30,7 @@ new MockSource().fetchAssignments().then(assignments => {
 
 type MessageHandler = (response: unknown) => void;
 
+// Handles a subset of runtime messages used by preview UI.
 function handleMessage(msg: Record<string, unknown>, sendResponse: MessageHandler) {
   if (msg['type'] === 'GET_STATE') {
     sendResponse({ ...store });

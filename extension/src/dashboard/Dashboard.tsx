@@ -16,13 +16,16 @@ const DEFAULT_BLOCKED_SITES = ['instagram.com', 'discord.com', 'youtube.com'];
 const NON_REMOVABLE_SITES = new Set(DEFAULT_BLOCKED_SITES);
 const GOOGLE_SHARED_FAVICON_BASE = 'https://www.google.com/s2/favicons';
 
+// Builds favicon URL for a domain using Google's shared favicon endpoint.
 function getFaviconUrl(domain: string): string {
   return `${GOOGLE_SHARED_FAVICON_BASE}?domain=${encodeURIComponent(domain)}&sz=64`;
 }
 
+// Normalizes user-entered domains for block-list consistency.
 const normalizeBlockedSite = (site: string) =>
   site.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '');
 
+// Merges defaults into the block list and removes duplicates.
 const normalizeBlockedSites = (sites: string[] | undefined) =>
   Array.from(new Set([...(sites ?? []), ...DEFAULT_BLOCKED_SITES]
     .map(normalizeBlockedSite)
@@ -43,6 +46,7 @@ const ZONE_COLORS: Record<string, string> = {
 
 const CONFETTI_COLORS = ['#2f7d6e', '#6aa37f', '#d9a441', '#f59e0b', '#f87171', '#38bdf8'];
 
+// Formats task estimates using minutes when present.
 function formatDuration(task: Assignment): string {
   const mins = task.estMinutes;
   if (typeof mins === 'number' && mins > 0) {
@@ -54,6 +58,7 @@ function formatDuration(task: Assignment): string {
   return `${task.calEst}h`;
 }
 
+// Formats decimal-hour load values into compact readable labels.
 function formatLoadHours(hours: number): string {
   const totalMinutes = Math.round(hours * 60);
   if (totalMinutes < 60) return `${totalMinutes}m`;
@@ -62,6 +67,7 @@ function formatLoadHours(hours: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
+// Renders an expiry timestamp as a live mm:ss countdown.
 function formatCountdown(expiryMs: number): string {
   const remaining = Math.max(0, expiryMs - Date.now());
   const totalSeconds = Math.floor(remaining / 1000);
@@ -70,6 +76,7 @@ function formatCountdown(expiryMs: number): string {
   return `${minutes}m ${String(seconds).padStart(2, '0')}s`;
 }
 
+// Converts a domain into a title-case brand-style label.
 function formatSiteLabel(site: string): string {
   const primary = site.replace(/^www\./, '').split('.')[0] ?? site;
   return primary
@@ -79,6 +86,7 @@ function formatSiteLabel(site: string): string {
     .join(' ');
 }
 
+// Home navigation icon.
 function HomeIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -88,6 +96,7 @@ function HomeIcon() {
   );
 }
 
+// Settings navigation icon.
 function SettingsIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -97,6 +106,7 @@ function SettingsIcon() {
   );
 }
 
+// Shop navigation icon.
 function ShopIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -126,6 +136,7 @@ export default function Dashboard() {
   const [purchaseMinutes, setPurchaseMinutes] = useState(0);
   const [timerTick, setTimerTick] = useState(0);
 
+  // Loads dashboard state plus current unlock timers.
   const loadState = useCallback(() => {
     chrome.runtime.sendMessage({ type: 'GET_STATE' }, (res: AppState) => {
       setState(res);
@@ -222,6 +233,7 @@ export default function Dashboard() {
     setSettingsMsg('OpenAI API key saved.');
   };
 
+  // Persists a full blocked-site list and updates local UI feedback.
   const updateBlockedSites = (nextSites: string[]) => {
     const normalized = normalizeBlockedSites(nextSites);
     setBlockedSites(normalized);
@@ -231,6 +243,7 @@ export default function Dashboard() {
     });
   };
 
+  // Adds a normalized site to the current block list.
   const handleAddBlockedSite = () => {
     const site = normalizeBlockedSite(newBlockedSite);
     if (!site) return;
@@ -243,6 +256,7 @@ export default function Dashboard() {
     setNewBlockedSite('');
   };
 
+  // Removes one optional site from the block list.
   const handleRemoveBlockedSite = (site: string) => {
     if (NON_REMOVABLE_SITES.has(site)) {
       return;
@@ -251,10 +265,12 @@ export default function Dashboard() {
     updateBlockedSites(blockedSites.filter(item => item !== site));
   };
 
+  // Re-saves the current blocked-site list.
   const handleSaveBlockedSites = () => {
     updateBlockedSites(blockedSites);
   };
 
+  // Triggers AI analysis for current assignment titles.
   const handleAnalyzeTasks = async () => {
     setSettingsMsg('Analyzing assignments...');
     const result = await chrome.runtime.sendMessage({ type: 'ANALYZE_ASSIGNMENTS' }) as {
@@ -272,6 +288,7 @@ export default function Dashboard() {
     setSettingsMsg(`Analyzed ${result.analyzed ?? 0} assignments with OpenAI.`);
   };
 
+  // Buys temporary site unlock time from the in-app shop.
   const handleBuyUnlock = async (site: string) => {
     const minutes = shopMinutes[site] ?? 5;
     const cost = minutes * 10;
@@ -288,6 +305,7 @@ export default function Dashboard() {
     });
   };
 
+  // Sets one assignment to active and persists the updated list.
   const handleActivateTask = (taskId: string) => {
     if (!state) return;
     const nextAssignments = state.assignments.map(task =>

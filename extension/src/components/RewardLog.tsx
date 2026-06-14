@@ -5,6 +5,7 @@ interface Props {
   events: RewardEvent[];
 }
 
+// Displays reward events in reverse-chronological order.
 export default function RewardLog({ events }: Props) {
   return (
     <div className="space-y-2 max-h-64 overflow-y-auto">

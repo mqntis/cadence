@@ -14,6 +14,7 @@ interface CanvasPlannerItem {
   };
 }
 
+// Infers assignment type from Canvas title and metadata.
 function guessType(item: CanvasPlannerItem): Assignment['type'] {
   const types = item.plannable.submission_types ?? [];
   const title = item.plannable.title.toLowerCase();
@@ -34,11 +35,13 @@ export class CanvasSource implements DataSource {
     this.token = token;
   }
 
+  // Checks if script is currently running on a Canvas domain.
   async isAvailable(): Promise<boolean> {
     if (typeof window === 'undefined') return false;
     return window.location.hostname.endsWith('.instructure.com');
   }
 
+  // Fetches planner assignments and maps them into app shape.
   async fetchAssignments(): Promise<Assignment[]> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (this.token) headers['Authorization'] = `Bearer ${this.token}`;

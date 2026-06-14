@@ -17,10 +17,12 @@ const SEED_ASSIGNMENTS: Omit<Assignment, 'calEst'>[] = [
 export class MockSource implements DataSource {
   readonly name = 'Mock (Demo)';
 
+  // Mock source is always available in demo contexts.
   async isAvailable(): Promise<boolean> {
     return true;
   }
 
+  // Returns seeded assignments with calibrated estimate values.
   async fetchAssignments(): Promise<Assignment[]> {
     return SEED_ASSIGNMENTS.map(a => ({
       ...a,

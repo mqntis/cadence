@@ -1,12 +1,14 @@
 const coinCount = document.getElementById('coin-count');
 const shopButton = document.getElementById('shop-button');
 
+// Renders coin balance text in the blocked-page badge.
 function renderCoinBalance(balance) {
   if (!coinCount) return;
   const amount = Number(balance ?? 0);
   coinCount.textContent = Number.isFinite(amount) ? amount.toLocaleString() : '0';
 }
 
+// Refreshes coin balance from runtime state, then storage fallback.
 async function refreshCoinBalance() {
   try {
     const state = await chrome.runtime.sendMessage({ type: 'GET_STATE' });

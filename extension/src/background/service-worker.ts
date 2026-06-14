@@ -20,10 +20,12 @@ const ACTION_ICON_PATH = {
   128: 'icons/icon128.png',
 };
 
+// Applies extension action icon paths for all icon sizes.
 function applyActionIcon(): void {
   chrome.action.setIcon({ path: ACTION_ICON_PATH });
 }
 
+// Resolves when a tab reports status=complete, or times out.
 function waitForTabComplete(tabId: number, timeoutMs = 15000): Promise<void> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -46,6 +48,7 @@ const DEFAULT_BLOCKED_SITES = ['instagram.com', 'discord.com', 'youtube.com'];
 
 const BLOCKED_REDIRECT_PATH = '/src/blocked.html';
 
+// Builds one redirect rule that sends a blocked domain to focus page.
 function buildRedirectRule(domain: string, ruleId: number): chrome.declarativeNetRequest.Rule {
   return {
     id: ruleId,
@@ -61,6 +64,7 @@ function buildRedirectRule(domain: string, ruleId: number): chrome.declarativeNe
   };
 }
 
+// Drops expired temporary unblocks from storage map.
 function pruneUnblockedSites(unblockedSites?: Record<string, number>): Record<string, number> {
   const now = Date.now();
   return Object.entries(unblockedSites ?? {}).reduce<Record<string, number>>((acc, [domain, expiry]) => {
@@ -71,12 +75,14 @@ function pruneUnblockedSites(unblockedSites?: Record<string, number>): Record<st
   }, {});
 }
 
+// Checks whether a domain is currently unlocked by timer.
 function isSiteUnlocked(domain: string, unblockedSites?: Record<string, number>): boolean {
   const normalized = domain.trim().toLowerCase();
   const expiry = unblockedSites?.[normalized];
   return typeof expiry === 'number' && expiry > Date.now();
 }
 
+// Recomputes and applies dynamic redirect rules for blocked sites.
 async function applyBlockRules(blockedSites: string[]) {
   const store = await chrome.storage.local.get(['unblockedSites']);
   const unblockedSites = pruneUnblockedSites(store.unblockedSites as Record<string, number> | undefined);
@@ -97,6 +103,7 @@ async function applyBlockRules(blockedSites: string[]) {
   });
 }
 
+// Initializes blocked-site defaults and rule set on startup.
 async function initBlockList() {
   const store = await chrome.storage.local.get(['blockedSites']);
   const blockedSites = (store.blockedSites as string[] | undefined) ?? DEFAULT_BLOCKED_SITES;
@@ -106,6 +113,7 @@ async function initBlockList() {
   await applyBlockRules(blockedSites);
 }
 
+// Asks classroom content script to scrape assignments from a tab.
 async function requestClassroomContentScrape(tabId: number): Promise<Assignment[] | null> {
   try {
     const contentResult = await chrome.tabs.sendMessage(tabId, { type: 'SCRAPE_CLASSROOM_TODO' }) as {
@@ -122,6 +130,7 @@ async function requestClassroomContentScrape(tabId: number): Promise<Assignment[
   return null;
 }
 
+// Fallback in-page scraper used when content script is unavailable.
 function scrapeClassroomTodoInPage(): Array<{
   id: string;
   title: string;
@@ -294,6 +303,7 @@ function scrapeClassroomTodoInPage(): Array<{
 
 applyActionIcon();
 
+// Normalizes model type output into supported assignment categories.
 function sanitizeType(value: string): AssignmentType {
   const normalized = value.toLowerCase().trim();
   if (normalized === 'reading') return 'reading';
@@ -304,6 +314,7 @@ function sanitizeType(value: string): AssignmentType {
   return 'homework';
 }
 
+// Extracts the first top-level JSON object from model text output.
 function extractJson(text: string): string {
   const start = text.indexOf('{');
   const end = text.lastIndexOf('}');
@@ -311,6 +322,7 @@ function extractJson(text: string): string {
   return text.slice(start, end + 1);
 }
 
+// Caps short admin/form tasks so estimates stay realistic.
 function adjustMinutesByTitle(title: string, minutes: number): number {
   const t = title.toLowerCase();
   const microTaskPattern = /\b(seat\s*change|attendance|check\s*in|sign\s*in|confirm\s*seat|seat\s*update|reflection\s*form|quarter\s*reflection|how('?|\s*)s\s*the\s*quarter|how\s*is\s*the\s*quarter|google\s*form|form|survey|poll)\b/;
@@ -320,10 +332,12 @@ function adjustMinutesByTitle(title: string, minutes: number): number {
   return minutes;
 }
 
+// Rounds decimal hours to 5-minute increments.
 function roundHoursToFiveMinutes(hours: number): number {
   return Math.round(hours * 12) / 12;
 }
 
+// Estimates task metadata from a title using OpenAI with fallback.
 async function estimateTaskFromTitle(input: {
   title: string;
   dueInDays: number;
@@ -352,6 +366,7 @@ async function estimateTaskFromTitle(input: {
   return analyzed;
 }
 
+// Calls OpenAI to validate, clean, and estimate one assignment.
 async function analyzeWithOpenAI(assignment: Assignment, apiKey: string): Promise<ModelResult | null> {
   const prompt = [
     'You classify and sanitize student assignment titles.',
@@ -421,6 +436,7 @@ async function analyzeWithOpenAI(assignment: Assignment, apiKey: string): Promis
   };
 }
 
+// Enriches assignment list with optional AI-derived fields.
 async function enrichAssignments(
   assignments: Assignment[],
   apiKey?: string,
@@ -468,6 +484,7 @@ async function enrichAssignments(
   return results;
 }
 
+// Merges incoming assignments by id while preserving done state.
 function mergeAssignments(existing: Assignment[], incoming: Assignment[]): Assignment[] {
   const byId = new Map<string, Assignment>();
 

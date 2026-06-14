@@ -1,5 +1,6 @@
 import { ClassroomSource } from '../adapters/ClassroomSource.js';
 
+// Responds to background scrape requests with live Classroom assignments.
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type !== 'SCRAPE_CLASSROOM_TODO') return;
 

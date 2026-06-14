@@ -18,10 +18,12 @@ export const DEFAULT_MULTIPLIERS: Multipliers = {
   exam: 1.0,
 };
 
+// Rounds a number to the nearest half step.
 export function roundToHalf(x: number): number {
   return Math.round(x * 2) / 2;
 }
 
+// Computes a calibrated estimate from priors and multipliers.
 export function calcEst(
   type: AssignmentType,
   estHours: number | undefined,
@@ -31,6 +33,7 @@ export function calcEst(
   return roundToHalf(base);
 }
 
+// Updates one task-type multiplier from actual vs estimated time.
 export function calibrate(
   type: AssignmentType,
   estimated: number,
@@ -42,6 +45,7 @@ export function calibrate(
   return { ...multipliers, [type]: updated };
 }
 
+// Builds a full assignment and fills missing calibrated estimate.
 export function buildAssignment(
   partial: Omit<Assignment, 'calEst'> & { calEst?: number },
   multipliers: Multipliers
