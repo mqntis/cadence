@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import type { Assignment, RewardEvent, Multipliers, CrunchInfo } from '../engine/types';
 import { paced, natural, crunch, zone, HORIZON } from '../engine/scheduler';
 import { computeDrift } from '../engine/drift';
-import { makeRewardEvent, assignmentDifficultyReward } from '../engine/rewards';
+import { makeRewardEvent, assignmentDurationReward } from '../engine/rewards';
 
 type ImportState = 'idle' | 'loading' | 'done' | 'error';
 
@@ -121,8 +121,8 @@ export default function Popup() {
     );
 
     chrome.runtime.sendMessage({ type: 'UPDATE_ASSIGNMENTS', assignments: updated }, () => {
-      const rewardScore = assignment.difficultyScore ?? Math.min(100, Math.round(assignment.calEst * 15));
-      const event = makeRewardEvent(assignmentDifficultyReward(rewardScore), 'difficultyReward');
+      const estimatedMinutes = assignment.estMinutes ?? Math.round((assignment.estHours ?? assignment.calEst) * 60);
+      const event = makeRewardEvent(assignmentDurationReward(estimatedMinutes), 'durationReward');
       chrome.runtime.sendMessage({ type: 'ADD_REWARD', event }, () => loadState());
     });
   };

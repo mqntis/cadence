@@ -288,6 +288,16 @@ export default function Dashboard() {
     });
   };
 
+  const handleActivateTask = (taskId: string) => {
+    if (!state) return;
+    const nextAssignments = state.assignments.map(task =>
+      task.id === taskId ? { ...task, active: true } : task
+    );
+
+    setState({ ...state, assignments: nextAssignments });
+    chrome.runtime.sendMessage({ type: 'UPDATE_ASSIGNMENTS', assignments: nextAssignments });
+  };
+
   return (
     <>
       {showShoppingAnimation && (
@@ -656,9 +666,20 @@ export default function Dashboard() {
                         <div className="text-sm font-semibold truncate">{task.title}</div>
                         <div className="text-xs text-ink/55">{subject} · {formatDuration(task)}</div>
                       </div>
-                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusTone}`}>
-                        {status}
-                      </span>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {!task.done && !(task.active ?? true) && (
+                          <button
+                            type="button"
+                            onClick={() => handleActivateTask(task.id)}
+                            className="rounded-full border border-tight/35 bg-tight/10 px-2.5 py-1 text-[10px] font-semibold text-tight hover:bg-tight/20"
+                          >
+                            Make Active
+                          </button>
+                        )}
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusTone}`}>
+                          {status}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 );

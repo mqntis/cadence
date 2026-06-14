@@ -27,6 +27,18 @@ export function assignmentDifficultyReward(score: number): RewardResult {
   };
 }
 
+export function assignmentDurationReward(estimatedMinutes: number): RewardResult {
+  const safeMinutes = Math.max(0, Math.round(estimatedMinutes));
+  const fiveMinuteBlocks = Math.ceil(safeMinutes / 5);
+  const delta = fiveMinuteBlocks * 10;
+
+  return {
+    delta,
+    label: 'Duration Reward',
+    reason: `${safeMinutes} estimated minute${safeMinutes !== 1 ? 's' : ''} → ${fiveMinuteBlocks} x 5m blocks earned ${delta} coins`,
+  };
+}
+
 export function pacedDay(): RewardResult {
   return { delta: 6, label: 'Paced Day', reason: 'Stayed within your paced daily load' };
 }

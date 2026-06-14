@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   earlyBird, pacedDay, restProtected, smoothWeek, honestLog,
-  cram, overCap, lateNight, rechargeSpend, checkCram, checkOverCap, checkLateNight
+  cram, overCap, lateNight, rechargeSpend, checkCram, checkOverCap, checkLateNight, assignmentDurationReward
 } from '../src/engine/rewards';
 
 describe('earlyBird', () => {
@@ -20,6 +20,10 @@ describe('positive rewards', () => {
   it('restProtected returns 15', () => expect(restProtected().delta).toBe(15));
   it('smoothWeek returns 25', () => expect(smoothWeek().delta).toBe(25));
   it('honestLog returns 4', () => expect(honestLog().delta).toBe(4));
+  it('duration reward grants 10 coins per 5 minutes', () => {
+    expect(assignmentDurationReward(30).delta).toBe(60);
+    expect(assignmentDurationReward(22).delta).toBe(50);
+  });
 });
 
 describe('anti-patterns return 0', () => {
