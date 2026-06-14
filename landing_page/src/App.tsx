@@ -52,6 +52,7 @@ const painPoints: Pain[] = [
   },
 ];
 
+// Coin glyph used in the hero status card.
 function CoinIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -61,6 +62,7 @@ function CoinIcon() {
   );
 }
 
+// Shield glyph used for focus-mode status.
 function ShieldIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -70,6 +72,7 @@ function ShieldIcon() {
   );
 }
 
+// Calendar glyph used for assignment row.
 function CalendarIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -79,6 +82,7 @@ function CalendarIcon() {
   );
 }
 
+// Renders the marketing landing page content.
 export default function App() {
   return (
     <div className="site-shell">
