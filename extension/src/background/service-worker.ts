@@ -47,6 +47,33 @@ function waitForTabComplete(tabId: number, timeoutMs = 15000): Promise<void> {
 const DEFAULT_BLOCKED_SITES = ['instagram.com', 'discord.com', 'youtube.com'];
 
 const BLOCKED_REDIRECT_PATH = '/src/blocked.html';
+const PERIODIC_EXPIRY_ALARM = 'checkBlockExpiry';
+const NEXT_EXPIRY_ALARM = 'nextBlockExpiry';
+
+// Returns the soonest valid unblock expiry timestamp, if any.
+function nextUnblockExpiry(unblockedSites?: Record<string, number>): number | null {
+  let min = Number.POSITIVE_INFINITY;
+  const now = Date.now();
+
+  for (const expiry of Object.values(unblockedSites ?? {})) {
+    if (expiry > now && expiry < min) {
+      min = expiry;
+    }
+  }
+
+  return Number.isFinite(min) ? min : null;
+}
+
+// Keeps alarms in sync so expiries are enforced even with no dashboard tab open.
+async function scheduleExpiryAlarms(unblockedSites?: Record<string, number>): Promise<void> {
+  chrome.alarms.create(PERIODIC_EXPIRY_ALARM, { periodInMinutes: 0.5 });
+
+  const expiry = nextUnblockExpiry(unblockedSites);
+  await chrome.alarms.clear(NEXT_EXPIRY_ALARM);
+  if (expiry) {
+    chrome.alarms.create(NEXT_EXPIRY_ALARM, { when: expiry });
+  }
+}
 
 // Builds one redirect rule that sends a blocked domain to focus page.
 function buildRedirectRule(domain: string, ruleId: number): chrome.declarativeNetRequest.Rule {
@@ -89,6 +116,7 @@ async function applyBlockRules(blockedSites: string[]) {
   if (Object.keys(unblockedSites).length !== Object.keys(store.unblockedSites ?? {}).length) {
     await chrome.storage.local.set({ unblockedSites });
   }
+  await scheduleExpiryAlarms(unblockedSites);
   const activeBlockedSites = blockedSites.filter(site => !isSiteUnlocked(site, unblockedSites));
   const currentRules = await chrome.declarativeNetRequest.getDynamicRules();
   const removeRuleIds = currentRules.map(rule => rule.id);
@@ -101,6 +129,21 @@ async function applyBlockRules(blockedSites: string[]) {
     removeRuleIds,
     addRules,
   });
+}
+
+async function reloadAllTabs(): Promise<void> {
+  const tabs = await chrome.tabs.query({});
+  await Promise.allSettled(
+    tabs
+      .map(tab => tab.id)
+      .filter((tabId): tabId is number => typeof tabId === 'number')
+      .map(async tabId => {
+        try {
+          await chrome.tabs.reload(tabId);
+        } catch {
+        }
+      })
+  );
 }
 
 // Initializes blocked-site defaults and rule set on startup.
@@ -522,12 +565,13 @@ chrome.runtime.onInstalled.addListener(async () => {
     },
   });
   await initBlockList();
-  chrome.alarms.create('checkBlockExpiry', { periodInMinutes: 0.5 });
+  await scheduleExpiryAlarms();
 });
 
 chrome.runtime.onStartup.addListener(() => {
   applyActionIcon();
   initBlockList();
+  scheduleExpiryAlarms();
 });
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
@@ -722,7 +766,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
 // Periodically check for expired unlocks and re-apply blocking rules
 chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name !== 'checkBlockExpiry') return;
+  if (alarm.name !== PERIODIC_EXPIRY_ALARM && alarm.name !== NEXT_EXPIRY_ALARM) return;
   
   const store = await chrome.storage.local.get(['blockedSites', 'unblockedSites']);
   const blockedSites = (store.blockedSites as string[]) ?? DEFAULT_BLOCKED_SITES;
@@ -733,5 +777,11 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   
   if (hasExpired) {
     await applyBlockRules(blockedSites);
+    await reloadAllTabs();
+    return;
+  }
+
+  if (alarm.name === PERIODIC_EXPIRY_ALARM) {
+    await scheduleExpiryAlarms(unblockedSites);
   }
 });

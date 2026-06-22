@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import type { Assignment, RewardEvent, Multipliers } from '../engine/types';
-import { paced, natural, crunch, zone, HORIZON } from '../engine/scheduler';
+import { crunch, zone, HORIZON } from '../engine/scheduler';
 import { computeDrift, driftMessage, SUPPORT_LINK } from '../engine/drift';
 
 interface AppState {
@@ -45,6 +45,16 @@ const ZONE_COLORS: Record<string, string> = {
 };
 
 const CONFETTI_COLORS = ['#2f7d6e', '#6aa37f', '#d9a441', '#f59e0b', '#f87171', '#38bdf8'];
+
+// Aggregates work by exact due day without splitting tasks across days.
+function deadlineLoad(items: Assignment[], horizon: number = HORIZON): number[] {
+  const load = Array(horizon).fill(0) as number[];
+  for (const item of items) {
+    const dueIdx = Math.min(Math.max(0, item.dueInDays - 1), horizon - 1);
+    load[dueIdx] += item.calEst;
+  }
+  return load;
+}
 
 // Formats task estimates using minutes when present.
 function formatDuration(task: Assignment): string {
@@ -221,12 +231,11 @@ export default function Dashboard() {
 
   const active = state.assignments.filter(a => !a.done);
   const allAssignments = [...state.assignments].sort((a, b) => a.dueInDays - b.dueInDays);
-  const pacedLoad = paced(active, HORIZON);
-  const naturalLoad = natural(active, HORIZON);
-  const crunchInfo = crunch(naturalLoad);
+  const forecastLoad = deadlineLoad(active, HORIZON);
+  const crunchInfo = crunch(forecastLoad);
   const drift = computeDrift(state.rewardEvents.slice(-20));
   const driftMsg = driftMessage(drift.state);
-  const chartMax = Math.max(8, ...naturalLoad, ...pacedLoad);
+  const chartMax = Math.max(8, ...forecastLoad);
 
   const handleSaveApiKey = async () => {
     await chrome.storage.local.set({ openAiApiKey: apiKeyInput.trim() });
@@ -598,9 +607,8 @@ export default function Dashboard() {
             <div className="mb-4 bg-overload/10 border border-overload/30 rounded-xl p-4">
               <div className="font-semibold text-overload text-sm">Crunch Forecast</div>
               <div className="text-sm text-ink/70 mt-1">
-                Your natural cram pattern creates <strong>{crunchInfo.runLength} consecutive overload day{crunchInfo.runLength !== 1 ? 's' : ''}</strong> starting in{' '}
+                Your current deadlines create <strong>{crunchInfo.runLength} consecutive overload day{crunchInfo.runLength !== 1 ? 's' : ''}</strong> starting in{' '}
                 <strong>{crunchInfo.startsInDays} day{crunchInfo.startsInDays !== 1 ? 's' : ''}</strong> (peak: <span className="font-mono">{formatLoadHours(crunchInfo.peakHours)}</span>).
-                The paced plan below smooths this out.
               </div>
             </div>
           )}
@@ -609,31 +617,24 @@ export default function Dashboard() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-ink">13-Day Workload Forecast</h2>
               <div className="flex gap-4 text-xs text-ink/60">
-                <span className="flex items-center gap-1"><span className="inline-block w-3 h-2 bg-accent rounded-sm"></span>Paced plan</span>
-                <span className="flex items-center gap-1"><span className="inline-block w-3 h-2 border border-dashed border-ink/40 rounded-sm"></span>Natural cram</span>
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-2 bg-accent rounded-sm"></span>Due-day schedule</span>
               </div>
             </div>
             <div className="flex items-end gap-1 h-48">
               {DAYS.map(i => {
-                const ph = pacedLoad[i];
-                const nh = naturalLoad[i];
-                const pz = zone(ph);
-                const pHeight = `${(ph / chartMax) * 100}%`;
-                const nHeight = `${(nh / chartMax) * 100}%`;
+                const hours = forecastLoad[i];
+                const dayZone = zone(hours);
+                const height = `${(hours / chartMax) * 100}%`;
                 return (
                   <div key={i} className="flex-1 flex flex-col items-center gap-0.5" style={{ minWidth: 0 }}>
                     <div className="relative w-full flex items-end gap-0.5 h-40">
                       <div
-                        className="flex-1 border border-dashed border-ink/30 rounded-t-sm"
-                        style={{ height: nHeight, minHeight: nh > 0 ? '2px' : '0' }}
-                      />
-                      <div
-                        className="flex-1 rounded-t-sm"
-                        style={{ height: pHeight, backgroundColor: ZONE_COLORS[pz], minHeight: ph > 0 ? '2px' : '0' }}
+                        className="w-full rounded-t-sm"
+                        style={{ height, backgroundColor: ZONE_COLORS[dayZone], minHeight: hours > 0 ? '2px' : '0' }}
                       />
                     </div>
                     <div className="text-[9px] text-ink/40 font-mono truncate w-full text-center">{DAY_LABELS[i]}</div>
-                    {ph > 0 && <div className="text-[8px] font-mono text-ink/60">{formatLoadHours(ph)}</div>}
+                    {hours > 0 && <div className="text-[8px] font-mono text-ink/60">{formatLoadHours(hours)}</div>}
                   </div>
                 );
               })}

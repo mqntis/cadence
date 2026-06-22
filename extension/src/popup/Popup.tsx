@@ -144,7 +144,7 @@ export default function Popup() {
     const estimateResult = await chrome.runtime.sendMessage({
       type: 'ESTIMATE_TASK',
       title,
-      dueInDays: 3,
+      dueInDays: 1,
     }) as {
       ok?: boolean;
       analyzed?: {
@@ -173,7 +173,7 @@ export default function Popup() {
       title: cleanTitle,
       topic: analyzed.topic,
       type: analyzed.type,
-      dueInDays: 3,
+      dueInDays: 1,
       estMinutes: analyzed.estMinutes,
       estHours: analyzed.estHours,
       calEst: analyzed.calEst,
